@@ -1,0 +1,43 @@
+# Secrets
+secrets/*.pem
+secrets/*.key
+secrets/*.txt
+!secrets/.gitkeep
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+dist/
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+htmlcov/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Docker volumes (if bind-mounted locally)
+shared/zeek-logs/*.log
+shared/zeek-logs/*.gz
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Traefik certs (generated, not committed)
+traefik/certs/*.crt
+traefik/certs/*.key
+!traefik/certs/.gitkeep

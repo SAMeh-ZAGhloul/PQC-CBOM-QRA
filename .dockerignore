@@ -1,0 +1,16 @@
+.git
+.gitignore
+*.md
+secrets/
+shared/
+traefik/certs/
+.env
+.env.*
+!.env.example
+node_modules/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.mypy_cache/
+**/dist/
+**/.venv/
