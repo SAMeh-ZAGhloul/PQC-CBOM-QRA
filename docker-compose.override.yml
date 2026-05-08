@@ -1,0 +1,34 @@
+# Dev overrides — hot reload, exposed debug ports
+version: "3.9"
+
+services:
+  api:
+    command: uvicorn cbom_api.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./api/src:/app/src:ro
+    environment:
+      - APP_ENV=development
+      - LOG_LEVEL=DEBUG
+
+  frontend:
+    build:
+      target: dev
+    command: npm run dev -- --host 0.0.0.0 --port 3000
+    volumes:
+      - ./frontend/src:/app/src:ro
+
+  rabbitmq:
+    ports:
+      - "15672:15672"    # Expose management UI in dev
+
+  postgres:
+    ports:
+      - "5432:5432"      # Expose DB in dev for migrations
+
+  redis:
+    ports:
+      - "6379:6379"      # Expose Redis in dev
+
+  ollama:
+    ports:
+      - "11434:11434"    # Expose Ollama in dev

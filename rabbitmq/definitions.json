@@ -1,0 +1,133 @@
+{
+  "vhosts": [{"name": "/"}],
+  "exchanges": [
+    {
+      "name": "cbom.direct",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "cbom.fanout",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "cbom.dlx",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "scanner.ast",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "cbom.dlx",
+        "x-dead-letter-routing-key": "cbom.dlq",
+        "x-message-ttl": 3600000,
+        "x-max-retries": 3
+      }
+    },
+    {
+      "name": "scanner.binary",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "cbom.dlx",
+        "x-dead-letter-routing-key": "cbom.dlq",
+        "x-message-ttl": 3600000
+      }
+    },
+    {
+      "name": "scanner.cert",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "cbom.dlx",
+        "x-dead-letter-routing-key": "cbom.dlq",
+        "x-message-ttl": 1800000
+      }
+    },
+    {
+      "name": "scanner.db",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "cbom.dlx",
+        "x-dead-letter-routing-key": "cbom.dlq",
+        "x-message-ttl": 1800000
+      }
+    },
+    {
+      "name": "slm.fallback",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "cbom.dlx",
+        "x-dead-letter-routing-key": "cbom.dlq",
+        "x-message-ttl": 60000,
+        "x-max-length": 500
+      }
+    },
+    {
+      "name": "cbom.ingest",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "cbom.dlx",
+        "x-dead-letter-routing-key": "cbom.dlq"
+      }
+    },
+    {
+      "name": "cbom.notify",
+      "vhost": "/",
+      "durable": false,
+      "auto_delete": false,
+      "arguments": {"x-message-ttl": 30000}
+    },
+    {
+      "name": "cbom.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "orchestrator.requests",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "cbom.dlx",
+        "x-dead-letter-routing-key": "cbom.dlq"
+      }
+    }
+  ],
+  "bindings": [
+    {"source": "cbom.direct", "vhost": "/", "destination": "scanner.ast",           "destination_type": "queue", "routing_key": "scanner.ast",           "arguments": {}},
+    {"source": "cbom.direct", "vhost": "/", "destination": "scanner.binary",        "destination_type": "queue", "routing_key": "scanner.binary",        "arguments": {}},
+    {"source": "cbom.direct", "vhost": "/", "destination": "scanner.cert",          "destination_type": "queue", "routing_key": "scanner.cert",          "arguments": {}},
+    {"source": "cbom.direct", "vhost": "/", "destination": "scanner.db",            "destination_type": "queue", "routing_key": "scanner.db",            "arguments": {}},
+    {"source": "cbom.direct", "vhost": "/", "destination": "slm.fallback",          "destination_type": "queue", "routing_key": "slm.fallback",          "arguments": {}},
+    {"source": "cbom.direct", "vhost": "/", "destination": "cbom.ingest",           "destination_type": "queue", "routing_key": "cbom.ingest",           "arguments": {}},
+    {"source": "cbom.direct", "vhost": "/", "destination": "orchestrator.requests", "destination_type": "queue", "routing_key": "orchestrator.requests", "arguments": {}},
+    {"source": "cbom.fanout", "vhost": "/", "destination": "cbom.notify",           "destination_type": "queue", "routing_key": "",                      "arguments": {}},
+    {"source": "cbom.dlx",   "vhost": "/", "destination": "cbom.dlq",              "destination_type": "queue", "routing_key": "cbom.dlq",              "arguments": {}}
+  ]
+}
