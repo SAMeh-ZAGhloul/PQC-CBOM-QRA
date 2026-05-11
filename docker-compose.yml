@@ -14,7 +14,7 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
-  ollama-models:
+  llama-models:
   portainer-data:
   zeek-logs:         # shared between zeek (rw) and orchestrator (ro)
 
@@ -170,7 +170,7 @@ services:
         condition: service_healthy
       worker-magika:
         condition: service_healthy
-      ollama:
+      llama-cpp:
         condition: service_started
 
   worker-binary:
@@ -284,19 +284,30 @@ services:
       postgres:
         condition: service_healthy
 
-  # ── Ollama SLM ────────────────────────────────────────────────────────────
-  ollama:
-    image: ollama/ollama:latest
-    container_name: cbom-ollama
+  # ── llama.cpp SLM ────────────────────────────────────────────────────────
+  llama-cpp:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: cbom-llama-cpp
     restart: unless-stopped
     networks: [cbom-backend]
     volumes:
-      - ollama-models:/root/.ollama
+      - llama-models:/models
     environment:
-      - OLLAMA_NUM_PARALLEL=2
-      - OLLAMA_MAX_LOADED_MODELS=1
+      - HF_HOME=/models/hf-cache
+      - LLAMA_CACHE=/models/hf-cache
+    command:
+      - -hf
+      - LiquidAI/LFM2.5-1.2B-Instruct-GGUF:Q4_K_M
+      - --alias
+      - cbom-slm
+      - --host
+      - 0.0.0.0
+      - --port
+      - "11434"
+      - --ctx-size
+      - "4096"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "curl", "-f", "http://localhost:11434/health"]
       interval: 30s
       timeout: 10s
       start_period: 60s

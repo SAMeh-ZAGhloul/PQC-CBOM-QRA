@@ -49,12 +49,16 @@ HOMEGROWN_CRYPTO_PROMPT = (
     "Code:\n<code>\n{content}\n</code>"
 )
 
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "ollama")
-OLLAMA_PORT = os.environ.get("OLLAMA_PORT", "11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma2:2b")
-OLLAMA_BASE_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}"
-OLLAMA_MAX_CONCURRENT = int(os.environ.get("OLLAMA_MAX_CONCURRENT", "10"))
-OLLAMA_TIMEOUT = int(os.environ.get("OLLAMA_TIMEOUT_SECONDS", "60"))
+LLM_HOST = os.environ.get("LLM_HOST", os.environ.get("OLLAMA_HOST", "llama-cpp"))
+LLM_PORT = os.environ.get("LLM_PORT", os.environ.get("OLLAMA_PORT", "11434"))
+LLM_MODEL = os.environ.get("LLM_MODEL", os.environ.get("OLLAMA_MODEL", "cbom-slm"))
+LLM_BASE_URL = f"http://{LLM_HOST}:{LLM_PORT}"
+LLM_MAX_CONCURRENT = int(
+    os.environ.get("LLM_MAX_CONCURRENT", os.environ.get("OLLAMA_MAX_CONCURRENT", "10"))
+)
+LLM_TIMEOUT = int(
+    os.environ.get("LLM_TIMEOUT_SECONDS", os.environ.get("OLLAMA_TIMEOUT_SECONDS", "60"))
+)
 
 _semaphore: asyncio.Semaphore | None = None
 
@@ -62,7 +66,7 @@ _semaphore: asyncio.Semaphore | None = None
 def _get_semaphore() -> asyncio.Semaphore:
     global _semaphore
     if _semaphore is None:
-        _semaphore = asyncio.Semaphore(OLLAMA_MAX_CONCURRENT)
+        _semaphore = asyncio.Semaphore(LLM_MAX_CONCURRENT)
     return _semaphore
 
 
@@ -75,14 +79,17 @@ async def analyze_file_async(file_path: str, prompt_template: str) -> list[dict[
 
     async with _get_semaphore():
         try:
-            async with httpx.AsyncClient(timeout=OLLAMA_TIMEOUT) as client:
+            async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
                 response = await client.post(
-                    f"{OLLAMA_BASE_URL}/api/generate",
-                    json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False,
-                          "options": {"temperature": 0.1, "num_predict": 800}},
+                    f"{LLM_BASE_URL}/completion",
+                    json={
+                        "prompt": prompt,
+                        "temperature": 0.1,
+                        "n_predict": 800,
+                    },
                 )
                 response.raise_for_status()
-                raw = response.json().get("response", "").strip()
+                raw = response.json().get("content", "").strip()
                 # Strip accidental markdown fences
                 if raw.startswith("```"):
                     raw = raw.split("```")[1]
@@ -92,19 +99,22 @@ async def analyze_file_async(file_path: str, prompt_template: str) -> list[dict[
                 data = json.loads(raw)
                 return data.get("findings", [])
         except json.JSONDecodeError as e:
-            logger.warning("ollama_json_parse_failed", file=file_path, error=str(e))
+            logger.warning("llm_json_parse_failed", file=file_path, error=str(e))
         except httpx.TimeoutException:
-            logger.warning("ollama_timeout", file=file_path)
+            logger.warning("llm_timeout", file=file_path)
         except Exception as e:
-            logger.error("ollama_request_failed", file=file_path, error=str(e))
+            logger.error("llm_request_failed", file=file_path, error=str(e))
     return []
 
 
 async def check_ollama_health() -> bool:
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            r = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
-            models = r.json().get("models", [])
-            return any(OLLAMA_MODEL in m.get("name","") for m in models)
+            health = await client.get(f"{LLM_BASE_URL}/health")
+            if health.status_code != 200:
+                return False
+            models_response = await client.get(f"{LLM_BASE_URL}/v1/models")
+            models = models_response.json().get("data", [])
+            return any(LLM_MODEL == m.get("id") for m in models)
     except Exception:
         return False

@@ -33,13 +33,13 @@ setup:
 	@bash scripts/init-minio.sh
 	@echo ""
 	@echo "==> Setup complete!"
-	@echo "    Next step: make pull-model  (downloads Gemma 2 2B, ~3 GB)"
+	@echo "    Next step: make pull-model  (warms llama.cpp model cache, ~1-2 GB)"
 
-## Pull Gemma 2 2B model into Ollama (run once, ~3 GB download)
+## Warm llama.cpp model cache (run once, ~1-2 GB download)
 pull-model:
-	@echo "==> Starting Ollama container..."
-	@$(COMPOSE) up -d ollama
-	@echo "==> Waiting for Ollama to be ready..."
+	@echo "==> Starting llama.cpp container..."
+	@$(COMPOSE) up -d llama-cpp
+	@echo "==> Waiting for llama.cpp to be ready..."
 	@sleep 15
 	@bash scripts/model-pull.sh
 	@echo "==> Model ready. Run: make up"
@@ -219,13 +219,21 @@ shell-api:
 shell-rabbitmq:
 	@$(COMPOSE) exec $(MQ_CONTAINER) bash
 
-## Open Ollama shell
+## Open llama.cpp shell
 shell-ollama:
-	@$(COMPOSE) exec cbom-ollama bash
+	@$(COMPOSE) exec cbom-llama-cpp sh
 
-## List loaded Ollama models
+## Open llama.cpp shell
+shell-llama-cpp:
+	@$(COMPOSE) exec cbom-llama-cpp sh
+
+## List loaded llama.cpp models
 ollama-models:
-	@$(COMPOSE) exec cbom-ollama ollama list
+	@curl -sf http://localhost:11434/v1/models
+
+## List loaded llama.cpp models
+llama-models:
+	@curl -sf http://localhost:11434/v1/models
 
 ## Run CBOM platform CLI (when implemented)
 cbom-cli:

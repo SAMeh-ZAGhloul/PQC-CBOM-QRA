@@ -29,6 +29,6 @@ services:
     ports:
       - "6379:6379"      # Expose Redis in dev
 
-  ollama:
+  llama-cpp:
     ports:
-      - "11434:11434"    # Expose Ollama in dev
+      - "11435:11434"    # Expose llama.cpp in dev (host port 11435 to avoid conflict with native Ollama on 11434)

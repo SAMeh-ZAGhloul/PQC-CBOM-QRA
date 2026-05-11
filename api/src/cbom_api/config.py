@@ -54,9 +54,9 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 60
     jwt_refresh_token_expire_days: int = 7
 
-    ollama_host: str = "ollama"
-    ollama_port: int = 11434
-    ollama_model: str = "gemma2:2b"
+    llm_host: str = "llama-cpp"
+    llm_port: int = 11434
+    llm_model: str = "cbom-slm"
 
     qars_default_q_day_year: int = 2030
     qars_default_sector: str = "general_enterprise"
