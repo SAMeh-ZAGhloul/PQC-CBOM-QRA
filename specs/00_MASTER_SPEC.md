@@ -33,6 +33,7 @@ This is the entry point. Read this file first, then read each referenced spec in
 | 18 | `18_SCRIPTS_AND_MAKEFILE.md` | gen-certs.sh, model-pull.sh, backup.sh, Makefile targets | All |
 | 19 | `19_TESTING_STRATEGY.md` | Unit, integration, e2e tests per module | All |
 | 20 | `20_NFR_CHECKLIST.md` | NFR acceptance criteria, how to verify each | All |
+| 21 | `21_PQC_TEST_PROMPTS.md` | Sample PQC LLM/SLM Test Prompts | All |
 
 ---
 
