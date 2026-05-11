@@ -485,7 +485,7 @@ Verify the model is loaded:
   docker exec cbom-llama-cpp curl -sf http://localhost:11434/v1/models
 
 Test a prompt to confirm inference works:
-  curl -sf http://localhost:11434/completion \
+  curl -sf http://localhost:11435/completion \
     -H 'Content-Type: application/json' \
     -d '{"prompt": "Return JSON only, no markdown: {\"status\": \"working\", \"model\": \"cbom-slm\"}", "temperature": 0.1, "n_predict": 100}'
 ```
