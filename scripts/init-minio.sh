@@ -20,7 +20,7 @@ MAX_WAIT=60
 WAIT=0
 
 echo "==> Waiting for MinIO to be ready..."
-until curl -sf "http://localhost:9000/minio/health/live" > /dev/null 2>&1; do
+until docker exec "$CONTAINER" curl -sf "http://localhost:9000/minio/health/live" > /dev/null 2>&1; do
     if [[ $WAIT -ge $MAX_WAIT ]]; then
         echo "ERROR: MinIO did not become ready within ${MAX_WAIT}s"
         exit 1

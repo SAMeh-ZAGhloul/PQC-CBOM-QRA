@@ -319,11 +319,13 @@ services:
     secrets: [rabbitmq_password]
     environment:
       - RABBITMQ_DEFAULT_USER=cbom
-      - RABBITMQ_DEFAULT_PASS_FILE=/run/secrets/rabbitmq_password
       - RABBITMQ_DEFAULT_VHOST=/
     volumes:
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    command: >
+      sh -c "export RABBITMQ_DEFAULT_PASS=$$(cat /run/secrets/rabbitmq_password) &&
+             exec docker-entrypoint.sh rabbitmq-server"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s

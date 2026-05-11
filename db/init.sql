@@ -210,9 +210,13 @@ CREATE TABLE crypto_assets (
 
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (id, created_at),
-  UNIQUE (dedup_hash, created_at)
+
+  PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at);
+
+-- Note: PostgreSQL requires any PRIMARY KEY / UNIQUE constraint on a partitioned
+-- table to include the partition key. Global dedup_hash uniqueness must therefore
+-- be enforced at the application layer or via a separate dedup registry table.
 
 -- Partitions (quarterly — add more as needed)
 CREATE TABLE crypto_assets_2025_q1 PARTITION OF crypto_assets
@@ -257,8 +261,8 @@ CREATE TABLE certificates (
   -- Validity
   valid_from          TIMESTAMPTZ,
   valid_until         TIMESTAMPTZ,
-  is_expired          BOOLEAN NOT NULL DEFAULT FALSE,
-  days_until_expiry   INTEGER NOT NULL DEFAULT 0,
+  is_expired          BOOLEAN,
+  days_until_expiry   INTEGER,
 
   -- Fingerprints
   sha1_fingerprint    VARCHAR(60),
@@ -285,7 +289,8 @@ CREATE INDEX idx_certs_quantum_class ON certificates(quantum_class);
 
 CREATE TABLE qars_scores (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  asset_id        UUID NOT NULL REFERENCES crypto_assets(id) ON DELETE CASCADE,
+  asset_id        UUID NOT NULL,
+  asset_created_at TIMESTAMPTZ NOT NULL,
   scan_id         UUID NOT NULL REFERENCES scans(id) ON DELETE CASCADE,
 
   -- Mosca components
@@ -311,7 +316,14 @@ CREATE TABLE qars_scores (
   computed_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE qars_scores
+  ADD CONSTRAINT qars_scores_asset_fk
+  FOREIGN KEY (asset_id, asset_created_at)
+  REFERENCES crypto_assets(id, created_at)
+  ON DELETE CASCADE;
+
 CREATE INDEX idx_qars_scores_asset_id ON qars_scores(asset_id);
+CREATE INDEX idx_qars_scores_asset_ref ON qars_scores(asset_id, asset_created_at);
 CREATE INDEX idx_qars_scores_scan_id ON qars_scores(scan_id);
 CREATE INDEX idx_qars_scores_weighted ON qars_scores(weighted_qars DESC);
 CREATE INDEX idx_qars_scores_severity ON qars_scores(severity);
@@ -358,7 +370,8 @@ CREATE INDEX idx_qsri_scores_scan_id ON qsri_scores(scan_id);
 
 CREATE TABLE findings (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  asset_id        UUID REFERENCES crypto_assets(id) ON DELETE SET NULL,
+  asset_id        UUID,
+  asset_created_at TIMESTAMPTZ,
   cert_id         UUID REFERENCES certificates(id) ON DELETE SET NULL,
   scan_id         UUID NOT NULL REFERENCES scans(id) ON DELETE CASCADE,
 
@@ -384,6 +397,12 @@ CREATE TABLE findings (
 
   CONSTRAINT finding_has_target CHECK (asset_id IS NOT NULL OR cert_id IS NOT NULL)
 );
+
+ALTER TABLE findings
+  ADD CONSTRAINT findings_asset_fk
+  FOREIGN KEY (asset_id, asset_created_at)
+  REFERENCES crypto_assets(id, created_at)
+  ON DELETE SET NULL;
 
 CREATE INDEX idx_findings_scan_id ON findings(scan_id);
 CREATE INDEX idx_findings_status ON findings(status);
