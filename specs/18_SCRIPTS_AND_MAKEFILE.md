@@ -51,13 +51,13 @@ setup:
 	@bash scripts/init-minio.sh
 	@echo ""
 	@echo "==> Setup complete!"
-	@echo "    Next step: make pull-model  (downloads Gemma 2 2B, ~3 GB)"
+	@echo "    Next step: make pull-model  (downloads LFM2.5-1.2B GGUF, ~1.2 GB)"
 
-## Pull Gemma 2 2B model into Ollama (run once, ~3 GB download)
+## Pull LFM2.5-1.2B-Instruct GGUF model into llama.cpp (run once, ~1.2 GB download)
 pull-model:
-	@echo "==> Starting Ollama container..."
-	@$(COMPOSE) up -d ollama
-	@echo "==> Waiting for Ollama to be ready..."
+	@echo "==> Starting llama.cpp container..."
+	@$(COMPOSE) up -d llama-cpp
+	@echo "==> Waiting for llama.cpp to be ready..."
 	@sleep 15
 	@bash scripts/model-pull.sh
 	@echo "==> Model ready. Run: make up"
@@ -236,13 +236,13 @@ shell-api:
 shell-rabbitmq:
 	@$(COMPOSE) exec $(MQ_CONTAINER) bash
 
-## Open Ollama shell
-shell-ollama:
-	@$(COMPOSE) exec cbom-ollama bash
+## Open shell in llama.cpp container
+shell-llama:
+	@$(COMPOSE) exec cbom-llama-cpp bash
 
-## List loaded Ollama models
-ollama-models:
-	@$(COMPOSE) exec cbom-ollama ollama list
+## List loaded models via llama.cpp API
+llama-models:
+	@$(COMPOSE) exec cbom-llama-cpp curl -sf http://localhost:11434/v1/models
 
 ## Run CBOM platform CLI (when implemented)
 cbom-cli:
@@ -437,37 +437,35 @@ echo "  Or run: make trust-cert"
 
 ```bash
 #!/usr/bin/env bash
-# Pull Gemma 2 2B into the ollama-models Docker volume.
-# Run after: docker compose up -d ollama
+# Wait for llama.cpp to finish loading its GGUF model from HuggingFace Hub.
+# The model auto-downloads on first container start; this script waits
+# for it to be ready and then verifies it.
+# Run after: docker compose up -d llama-cpp
 
 set -euo pipefail
 
-CONTAINER="cbom-ollama"
-MODEL="gemma2:2b"
-MAX_WAIT=120
+CONTAINER="cbom-llama-cpp"
+MAX_WAIT=300
 WAIT=0
 
-echo "==> Waiting for Ollama container to be ready (max ${MAX_WAIT}s)..."
-until docker exec "$CONTAINER" curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do
+echo "==> Waiting for llama.cpp server to be ready (max ${MAX_WAIT}s)..."
+echo "    Model will auto-download on first start (~1.2 GB)..."
+until docker exec "$CONTAINER" curl -sf http://localhost:11434/health > /dev/null 2>&1; do
     if [[ $WAIT -ge $MAX_WAIT ]]; then
-        echo "ERROR: Ollama did not become ready within ${MAX_WAIT}s"
+        echo "ERROR: llama.cpp did not become ready within ${MAX_WAIT}s"
         echo "Check: docker logs $CONTAINER"
         exit 1
     fi
-    sleep 3
-    WAIT=$((WAIT + 3))
+    sleep 5
+    WAIT=$((WAIT + 5))
 done
 
-echo "==> Ollama ready. Pulling model: $MODEL"
-echo "    This will download approximately 2.7 GB..."
-docker exec "$CONTAINER" ollama pull "$MODEL"
+echo ""
+echo "==> llama.cpp ready. Verifying loaded model..."
+docker exec "$CONTAINER" curl -sf http://localhost:11434/v1/models
 
 echo ""
-echo "==> Verifying model..."
-docker exec "$CONTAINER" ollama list
-
-echo ""
-echo "==> Model pull complete. $MODEL is ready."
+echo "==> Model load complete. cbom-slm is ready for inference."
 echo "    GPU support: $(docker exec $CONTAINER nvidia-smi -L 2>/dev/null | head -1 || echo 'Not available (CPU mode)')"
 ```
 
@@ -732,4 +730,3 @@ aws s3 ls "s3://backups/postgres/" \
     done
 
 echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ==> Backup complete."
-```

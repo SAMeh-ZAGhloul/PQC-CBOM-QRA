@@ -229,7 +229,7 @@ kill %1
 **Expected:** No packets captured to external IPs (0 packets or only internal addresses).
 
 - [ ] Zero external network calls during scan with LLM fallback enabled
-- [ ] Ollama model loaded from local volume (no download during scan)
+- [ ] llama.cpp model loaded from local volume (no download during scan)
 
 ---
 
@@ -509,7 +509,7 @@ nameserver 127.0.0.11
 
 - [ ] All DNS resolution is internal (Docker internal resolver only)
 - [ ] Zero external API calls in application logs
-- [ ] Ollama serves model locally (no external inference API)
+- [ ] llama.cpp serves model locally (no external inference API)
 
 ---
 
@@ -596,10 +596,10 @@ echo "--- Database Tables ---"
 docker exec cbom-postgres psql -U cbom -d cbom -c \
   "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;" -tA | tr '\n' ', '
 
-# Ollama model
+# llama.cpp model
 echo ""
-echo "--- Ollama Model ---"
-docker exec cbom-ollama ollama list | grep gemma2
+echo "--- llama.cpp Model ---"
+docker exec cbom-llama-cpp curl -sf http://localhost:11434/v1/models | python3 -m json.tool
 
 # MinIO buckets
 echo ""
@@ -622,7 +622,7 @@ echo "==> Verification complete. Review any failures above."
 - [ ] TLS 1.3 confirmed
 - [ ] API `/health` returns `{"status": "ok"}`
 - [ ] All 14 database tables present
-- [ ] Gemma 2 2B model listed in Ollama
+- [ ] cbom-slm model loaded in llama.cpp (LFM2.5-1.2B-Instruct GGUF)
 - [ ] All 5 MinIO buckets present
 - [ ] Audit log DELETE blocked by RLS
 - [ ] All `MUST` NFR items above checked

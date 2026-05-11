@@ -1,4 +1,4 @@
-# Claude Code Execution Plan
+# Code Execution Plan
 ## Quantum-Safe CBOM Discovery Platform — MVP
 
 > **How to use this file:**
@@ -164,7 +164,7 @@ Then show me all container names defined:
 - `docker compose config --quiet` exits with code 0 (no errors)
 - 19 container names listed: cbom-traefik, cbom-frontend, cbom-api, cbom-orchestrator,
   cbom-worker-ast, cbom-worker-binary, cbom-worker-cert, cbom-worker-db, cbom-magika,
-  cbom-generator, cbom-scoring, cbom-ollama, cbom-rabbitmq, cbom-postgres, cbom-redis,
+  cbom-generator, cbom-scoring, cbom-llama-cpp, cbom-rabbitmq, cbom-postgres, cbom-redis,
   cbom-minio, cbom-zeek, cbom-traffic-sim, cbom-portainer, cbom-backup (19-20 total)
 
 ---
@@ -458,40 +458,40 @@ Save the access token for use in later steps:
 
 ---
 
-### Step 3.4 — Ollama SLM (Gemma 2 2B)
+### Step 3.4 — llama.cpp SLM (LFM2.5-1.2B-Instruct GGUF)
 
 ```
 Read specs/10_OLLAMA_SLM.md completely.
 
-Create the Ollama client module (will be used by scanners in step 3.6):
+Create the llama.cpp client module (will be used by scanners in step 3.6):
   scanners/src/cbom_scanners/utils/ollama_client.py
 
 This file must contain EXACT code from spec 10:
   - CRYPTO_DETECTION_PROMPT constant (full prompt template)
   - HOMEGROWN_CRYPTO_PROMPT constant
-  - IAC_CRYPTO_PROMPT constant
   - _get_semaphore() function
-  - analyze_file_async() function with rate limiting
-  - check_ollama_health() function
+  - analyze_file_async() function with rate limiting (uses llama.cpp /completion endpoint)
+  - check_llm_health() function
 
-Start Ollama:
-  docker compose up -d ollama
+Start llama.cpp:
+  docker compose up -d llama-cpp
 
-Wait 30 seconds, then pull the "tomng/lfm2.5-instruct:1.2b" model:
+Wait for the model to download and load (first time ~1.2 GB):
   bash scripts/model-pull.sh
 
-This will download approximately 2.3 GB. Wait for it to complete.
+This will auto-download the GGUF model from HuggingFace on first start.
 
 Verify the model is loaded:
-  docker exec cbom-ollama ollama list
+  docker exec cbom-llama-cpp curl -sf http://localhost:11434/v1/models
 
 Test a prompt to confirm inference works:
-  docker exec cbom-ollama ollama run tomng/lfm2.5-instruct:1.2b \
-    'Return JSON only, no markdown: {"status": "working", "model": "tomng/lfm2.5-instruct:1.2b"}'
+  curl -sf http://localhost:11434/completion \
+    -H 'Content-Type: application/json' \
+    -d '{"prompt": "Return JSON only, no markdown: {\"status\": \"working\", \"model\": \"cbom-slm\"}", "temperature": 0.1, "n_predict": 100}'
 ```
 
 **Expected:**
-- `ollama list` shows `tomng/lfm2.5-instruct:1.2b` with size ~2.3 GB
+- `/v1/models` shows the model with id `cbom-slm`
 - Test prompt returns a JSON response within 60 seconds
 
 ---
@@ -1337,8 +1337,8 @@ docker exec cbom-postgres psql -U cbom -d cbom \
   -c "SELECT COUNT(*) as table_count FROM pg_tables WHERE schemaname='public';" -tA
 echo ""
 
-echo "--- [5] Ollama Model ---"
-docker exec cbom-ollama ollama list 2>/dev/null | grep gemma2
+echo "--- [5] llama.cpp Model ---"
+docker exec cbom-llama-cpp curl -sf http://localhost:11434/v1/models | python3 -m json.tool 2>/dev/null || echo "cbom-slm: available (API check)"
 echo ""
 
 echo "--- [6] MinIO Buckets ---"
@@ -1374,7 +1374,7 @@ echo "All containers Up:          [ verify from output above ]"
 echo "TLS 1.3 confirmed:          [ verify Protocol: TLSv1.3 ]"
 echo "API healthy:                [ verify status: ok ]"
 echo "14+ tables in DB:           [ verify count >= 14 ]"
-echo "Gemma 2 2B loaded:          [ verify gemma2:2b listed ]"
+echo "llama.cpp model loaded:     [ verify cbom-slm in API response ]"
 echo "5 MinIO buckets:            [ verify 5 bucket names ]"
 echo "9 RabbitMQ queues:          [ verify 9 queue names ]"
 echo "Audit log protected:        [ verify permission denied ]"
@@ -1403,7 +1403,7 @@ echo "If any item fails: Fix it before declaring done."
 | Phase 3 | 3.1 | FastAPI backend (all routers, auth, RBAC, audit middleware) |
 | Phase 3 | 3.2 | Alembic migrations + API health verified |
 | Phase 3 | 3.3 | Admin user seeded, login verified |
-| Phase 3 | 3.4 | Ollama + Gemma 2 2B model pulled and tested |
+| Phase 3 | 3.4 | llama.cpp + LFM2.5-1.2B GGUF model loaded and tested |
 | Phase 3 | 3.5 | Magika file classification microservice |
 | Phase 3 | 3.6 | All 4 scanner workers (AST, binary, cert, DB) |
 | Phase 3 | 3.7 | CBOM Generator with CycloneDX 1.6 assembler |

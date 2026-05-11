@@ -1,7 +1,7 @@
 # Quantum-Safe CBOM Discovery Platform — Master Implementation Spec
 
 > **For:** Claude Code agent
-> **Version:** 1.0 | **Date:** June 2025
+> **Version:** 1.1 | **Date:** June 2025
 > **Status:** Implementation-ready
 
 This is the entry point. Read this file first, then read each referenced spec in order before writing any code.
@@ -22,7 +22,7 @@ This is the entry point. Read this file first, then read each referenced spec in
 | 07 | `07_CBOM_GENERATOR.md` | CycloneDX 1.6 assembly, dedup, quantum classifier | 04, 03 |
 | 08 | `08_SCORING_ENGINE.md` | QARS formula, QSRI 8-dimension model, sector profiles | 07 |
 | 09 | `09_ORCHESTRATOR.md` | Scan decomposer, Zeek log watcher, state machine | 04, 06 |
-| 10 | `10_OLLAMA_SLM.md` | Gemma 2 2B setup, prompt templates, rate limiting | 04 |
+| 10 | `10_OLLAMA_SLM.md` | llama.cpp SLM service, model setup, prompt templates | 04 |
 | 11 | `11_MINIO_STORAGE.md` | Bucket layout, SSE-S3, presigned URLs, backup cron | 02 |
 | 12 | `12_TRAEFIK_TLS.md` | TLS 1.3 config, self-signed cert gen, routing rules | 02 |
 | 13 | `13_FRONTEND_REACT.md` | React+Vite SPA, role views, pages, components, state | 05 |
@@ -30,7 +30,7 @@ This is the entry point. Read this file first, then read each referenced spec in
 | 15 | `15_ZEEK_SENSOR.md` | Zeek scripts, crypto-detection, log format, output | 09 |
 | 16 | `16_TRAFFIC_SIM.md` | Locust scenarios, benchmark reports, sample apps | All |
 | 17 | `17_SECURITY.md` | JWT RS256, bcrypt, Docker secrets, audit trail, RLS | 03, 05 |
-| 18 | `18_SCRIPTS_AND_MAKEFILE.md` | gen-certs.sh, seed-db.sh, backup.sh, Makefile targets | All |
+| 18 | `18_SCRIPTS_AND_MAKEFILE.md` | gen-certs.sh, model-pull.sh, backup.sh, Makefile targets | All |
 | 19 | `19_TESTING_STRATEGY.md` | Unit, integration, e2e tests per module | All |
 | 20 | `20_NFR_CHECKLIST.md` | NFR acceptance criteria, how to verify each | All |
 
@@ -78,7 +78,7 @@ License:    Proprietary / Confidential
 | MinIO | RELEASE.2024-xx | Docker image |
 | Traefik | v3.0 | Docker image |
 | Zeek | 6.x | Docker image |
-| Ollama | 0.3.x | Docker image |
+| llama.cpp | server (ghcr.io/ggml-org/llama.cpp:server) | Docker image |
 | Portainer CE | 2.x | Docker image |
 
 ---
@@ -162,7 +162,7 @@ cbom-backend  (bridge)
   Members: api, orchestrator, worker-ast, worker-binary,
            worker-cert, worker-db, worker-magika,
            cbom-generator, scoring-engine,
-           rabbitmq, postgres, redis, minio, ollama,
+           rabbitmq, postgres, redis, minio, llama-cpp,
            traffic-sim
 
 host  (zeek only)
@@ -194,7 +194,7 @@ host  (zeek only)
 | `redis-data` | redis | `/data` | Redis AOF |
 | `minio-data` | minio | `/data` | Object storage |
 | `zeek-logs` | zeek (rw), orchestrator (ro) | `/zeek/logs`, `/app/zeek-logs` | Zeek JSON output |
-| `ollama-models` | ollama | `/root/.ollama` | Gemma 2 2B weights |
+| `llama-models` | llama-cpp | `/models` | GGUF model weights + HuggingFace cache |
 | `portainer-data` | portainer | `/data` | Portainer config |
 
 ---
@@ -216,7 +216,7 @@ host  (zeek only)
 | orchestrator | redis | TCP 6379 | scan progress cache |
 | workers | rabbitmq | AMQP 5672 | Celery consume |
 | workers | worker-magika | HTTP 8002 | file classification |
-| workers | ollama | HTTP 11434 | SLM fallback |
+| workers | llama-cpp | HTTP 11434 | llama.cpp SLM fallback (OpenAI-compatible `/v1/chat/completions` + native `/completion`) |
 | workers | rabbitmq | AMQP 5672 | publish CryptoAssetFound |
 | cbom-generator | rabbitmq | AMQP 5672 | consume cbom.ingest |
 | cbom-generator | postgres | TCP 5432 | write CBOM |
@@ -240,7 +240,7 @@ host  (zeek only)
 | redis | 6379 | — | Internal only |
 | minio api | 9000 | — | Internal only |
 | minio console | 9001 | — (via Traefik) | Via Traefik |
-| ollama | 11434 | — | Internal only |
+| llama-cpp | 11434 | — | Internal only |
 | orchestrator | 8001 | — | Internal only |
 | worker-magika | 8002 | — | Internal only |
 | cbom-generator | 8003 | — | Internal only |
@@ -258,7 +258,7 @@ Phase 1 — Infrastructure (no code, just config)
   2. 12_TRAEFIK_TLS.md        → traefik.yml, certs, routing
   3. 02_DOCKER_COMPOSE.md     → full docker-compose.yml
   4. 04_RABBITMQ.md           → rabbitmq.conf, queue definitions
-  5. 18_SCRIPTS_AND_MAKEFILE.md → gen-certs.sh, seed-db.sh, backup.sh
+  5. 18_SCRIPTS_AND_MAKEFILE.md → gen-certs.sh, model-pull.sh, backup.sh
 
 Phase 2 — Data layer
   6. 03_DATABASE_SCHEMA.md    → init.sql, Alembic migrations
@@ -266,7 +266,7 @@ Phase 2 — Data layer
 
 Phase 3 — Backend services
   8. 05_API_BACKEND.md        → FastAPI: auth, RBAC, all routers
-  9. 10_OLLAMA_SLM.md         → Ollama setup, model pull, prompt service
+  9. 10_OLLAMA_SLM.md         → llama.cpp setup, model pull, prompt service
   10. 06_SCANNER_WORKERS.md   → all 4 scanner workers + Magika service
   11. 07_CBOM_GENERATOR.md    → CycloneDX assembler
   12. 08_SCORING_ENGINE.md    → QARS + QSRI engines
@@ -286,4 +286,3 @@ Phase 7 — Quality
   18. 17_SECURITY.md          → security audit checklist
   19. 19_TESTING_STRATEGY.md  → test implementation
   20. 20_NFR_CHECKLIST.md     → NFR verification
-```

@@ -37,7 +37,7 @@ cbom-platform/
 │   ├── gen-certs.sh                # Generate CA + wildcard TLS cert + JWT keys
 │   ├── seed-db.sh                  # Create admin user + default groups
 │   ├── backup.sh                   # pg_dump + upload to MinIO
-│   ├── model-pull.sh               # ollama pull gemma2:2b
+│   ├── model-pull.sh               # llama.cpp model download (LFM2.5-1.2B GGUF)
 │   └── init-minio.sh               # Create buckets + enable versioning
 │
 ├── db/
@@ -129,12 +129,12 @@ MINIO_BUCKET_ZEEK_LOGS=zeek-logs
 MINIO_BUCKET_SCAN_ARTIFACTS=scan-artifacts
 MINIO_BUCKET_COMPLIANCE=compliance-packages
 
-# ── Ollama SLM ───────────────────────────────────────────────────────────────
-OLLAMA_HOST=ollama
-OLLAMA_PORT=11434
-OLLAMA_MODEL=gemma2:2b
-OLLAMA_MAX_CONCURRENT=10
-OLLAMA_TIMEOUT_SECONDS=60
+# ── llama.cpp SLM ───────────────────────────────────────────────────────────
+LLM_HOST=llama-cpp
+LLM_PORT=11434
+LLM_MODEL=cbom-slm
+LLM_MAX_CONCURRENT=10
+LLM_TIMEOUT_SECONDS=60
 
 # ── JWT Auth ─────────────────────────────────────────────────────────────────
 JWT_ALGORITHM=RS256
@@ -342,4 +342,3 @@ make status        # show container health
 make backup        # manual CBOM backup to MinIO
 make down          # stop all containers
 make reset         # stop + delete all volumes (DESTRUCTIVE)
-```

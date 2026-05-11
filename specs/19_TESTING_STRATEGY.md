@@ -28,7 +28,7 @@ test = [
     "httpx==0.27.*",          # async HTTP client for FastAPI testing
     "factory-boy==3.*",       # test fixtures / factories
     "faker==25.*",            # fake data generation
-    "respx==0.21.*",          # mock httpx calls (Magika, Ollama)
+    "respx==0.21.*",          # mock httpx calls (Magika, llama.cpp)
     "freezegun==1.5.*",       # freeze time for QARS Z-value tests
 ]
 ```

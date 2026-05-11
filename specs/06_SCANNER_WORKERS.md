@@ -29,7 +29,7 @@ scanners/
         │   └── c_patterns.py
         └── utils/
             ├── magika_client.py   # HTTP client for Magika service
-            ├── olama_client.py    # HTTP client for Ollama SLM
+            ├── ollama_client.py   # HTTP client for llama.cpp SLM
             ├── publisher.py       # Publish CryptoAssetFound events
             └── archive.py        # ZIP/JAR/TAR unpacking
 ```
@@ -53,7 +53,7 @@ from .binary_scanner import scan_file_binary
 from .cert_scanner import scan_cert_or_host
 from .db_scanner import scan_database
 from .utils.magika_client import classify_file
-from .utils.ollama_client import analyze_with_slm
+from .utils.ollama_client import analyze_with_slm  # llama.cpp SLM fallback
 from .utils.publisher import publish_asset_found
 from .utils.archive import unpack_and_dispatch
 
@@ -656,8 +656,10 @@ def classify_file(file_path: str) -> dict:
 
 ## utils/ollama_client.py
 
+> **Note:** Despite the file name `ollama_client.py`, this module connects to the **llama.cpp** server at `llama-cpp:11434`. The name is kept for backward compatibility. The client uses llama.cpp's native `/completion` endpoint (not Ollama's `/api/generate`). Environment variables default to `LLM_*` prefixed names; `OLLAMA_*` fallbacks are supported for migration.
+
 ```python
-"""HTTP client for the Ollama SLM fallback service."""
+"""HTTP client for the llama.cpp SLM fallback service."""
 from __future__ import annotations
 
 import json
@@ -667,10 +669,11 @@ from typing import Any
 
 import httpx
 
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "ollama")
-OLLAMA_PORT = os.environ.get("OLLAMA_PORT", "11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma2:2b")
-OLLAMA_BASE_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}"
+# Primary: LLM_* vars; fallback: OLLAMA_* vars for migration compatibility
+LLM_HOST = os.environ.get("LLM_HOST", os.environ.get("OLLAMA_HOST", "llama-cpp"))
+LLM_PORT = os.environ.get("LLM_PORT", os.environ.get("OLLAMA_PORT", "11434"))
+LLM_MODEL = os.environ.get("LLM_MODEL", os.environ.get("OLLAMA_MODEL", "cbom-slm"))
+LLM_BASE_URL = f"http://{LLM_HOST}:{LLM_PORT}"
 
 CRYPTO_DETECTION_PROMPT = """You are a cryptographic security analyst. Analyze the code/config below for cryptographic operations.
 
@@ -694,7 +697,7 @@ Code to analyze:
 
 
 def analyze_with_slm(file_path: str) -> list[dict[str, Any]]:
-    """Use Ollama SLM to analyze a file for crypto usage."""
+    """Use llama.cpp SLM to analyze a file for crypto usage."""
     path = Path(file_path)
     if not path.exists():
         return []
@@ -704,17 +707,16 @@ def analyze_with_slm(file_path: str) -> list[dict[str, Any]]:
 
     try:
         response = httpx.post(
-            f"{OLLAMA_BASE_URL}/api/generate",
+            f"{LLM_BASE_URL}/completion",
             json={
-                "model": OLLAMA_MODEL,
                 "prompt": prompt,
-                "stream": False,
-                "options": {"temperature": 0.1, "num_predict": 500},
+                "temperature": 0.1,
+                "n_predict": 500,
             },
             timeout=60.0,
         )
         response.raise_for_status()
-        raw = response.json().get("response", "")
+        raw = response.json().get("content", "")
         data = json.loads(raw.strip())
         findings = data.get("findings", [])
 

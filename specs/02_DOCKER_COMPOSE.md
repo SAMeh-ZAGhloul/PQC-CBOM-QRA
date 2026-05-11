@@ -23,7 +23,7 @@ volumes:
   postgres-data:
   redis-data:
   minio-data:
-  ollama-models:
+  llama-models:
   portainer-data:
   zeek-logs:         # shared between zeek (rw) and orchestrator (ro)
 
@@ -179,7 +179,7 @@ services:
         condition: service_healthy
       worker-magika:
         condition: service_healthy
-      ollama:
+      llama-cpp:
         condition: service_started
 
   worker-binary:
@@ -293,27 +293,30 @@ services:
       postgres:
         condition: service_healthy
 
-  # ── Ollama SLM ────────────────────────────────────────────────────────────
-  ollama:
-    image: ollama/ollama:latest
-    container_name: cbom-ollama
+  # ── llama.cpp SLM ─────────────────────────────────────────────────────────
+  llama-cpp:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: cbom-llama-cpp
     restart: unless-stopped
     networks: [cbom-backend]
     volumes:
-      - ollama-models:/root/.ollama
+      - llama-models:/models
     environment:
-      - OLLAMA_NUM_PARALLEL=2
-      - OLLAMA_MAX_LOADED_MODELS=1
-    # GPU support (optional — remove if no NVIDIA GPU)
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+      - HF_HOME=/models/hf-cache
+      - LLAMA_CACHE=/models/hf-cache
+    command:
+      - -hf
+      - LiquidAI/LFM2.5-1.2B-Instruct-GGUF:Q4_K_M
+      - --alias
+      - cbom-slm
+      - --host
+      - 0.0.0.0
+      - --port
+      - "11434"
+      - --ctx-size
+      - "4096"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "curl", "-f", "http://localhost:11434/health"]
       interval: 30s
       timeout: 10s
       start_period: 60s
@@ -520,9 +523,9 @@ services:
     ports:
       - "6379:6379"      # Expose Redis in dev
 
-  ollama:
+  llama-cpp:
     ports:
-      - "11434:11434"    # Expose Ollama in dev
+      - "11434:11434"    # Expose llama.cpp in dev (OpenAI-compatible API)
 ```
 
 ---
@@ -547,10 +550,10 @@ setup:
 	@echo "==> Setup complete. Run: make pull-model"
 
 pull-model:
-	@echo "==> Pulling Gemma 2 2B model (~3 GB)..."
-	@docker compose up -d ollama
+	@echo "==> Pulling LFM2.5-1.2B-Instruct GGUF model (~1.2 GB)..."
+	@docker compose up -d llama-cpp
 	@sleep 10
-	@docker exec cbom-ollama ollama pull gemma2:2b
+	@bash scripts/model-pull.sh
 	@echo "==> Model ready."
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -619,4 +622,3 @@ reset:
 	@sleep 5
 	docker compose down -v
 	@echo "All volumes deleted."
-```

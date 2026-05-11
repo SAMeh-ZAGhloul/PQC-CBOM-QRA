@@ -359,11 +359,11 @@ services:
 ```
 Rule 1: Frontend network contains ONLY:
   traefik, frontend, api, minio (console), portainer
-  --> NO direct access to postgres, redis, rabbitmq, ollama, workers
+  --> NO direct access to postgres, redis, rabbitmq, llama-cpp, workers
 
 Rule 2: Backend network contains:
   api, orchestrator, all workers, rabbitmq, postgres, redis,
-  minio (api endpoint), ollama, cbom-generator, scoring-engine
+  minio (api endpoint), llama-cpp, cbom-generator, scoring-engine
   --> NOT exposed externally
 
 Rule 3: Host network contains ONLY:
