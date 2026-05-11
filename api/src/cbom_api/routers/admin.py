@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -97,7 +97,7 @@ async def update_user(user_id: uuid.UUID, payload: RequireAdmin, body: UserUpdat
     return UserResponse.model_validate(user)
 
 
-@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/users/{user_id}", status_code=status.HTTP_200_OK, response_class=Response)
 async def deactivate_user(user_id: uuid.UUID, payload: RequireAdmin, db: DBSession) -> None:
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -141,7 +141,7 @@ async def create_group(payload: RequireAdmin, body: GroupCreateRequest, db: DBSe
     return GroupResponse.model_validate(group)
 
 
-@router.delete("/groups/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/groups/{group_id}", status_code=status.HTTP_200_OK, response_class=Response)
 async def delete_group(group_id: uuid.UUID, payload: RequireAdmin, db: DBSession) -> None:
     default_group_names = {"administrators", "security-team", "cisos", "auditors", "executives"}
     result = await db.execute(select(Group).where(Group.id == group_id))
@@ -183,7 +183,7 @@ async def list_sessions(payload: RequireAdmin, db: DBSession):
     return result.scalars().all()
 
 
-@router.delete("/sessions/{jti}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/sessions/{jti}", status_code=status.HTTP_200_OK, response_class=Response)
 async def revoke_session(jti: uuid.UUID, payload: RequireAdmin, db: DBSession) -> None:
     result = await db.execute(select(UserSession).where(UserSession.jti == jti))
     session = result.scalar_one_or_none()

@@ -52,6 +52,27 @@ http:
           - "/minio"
 
   routers:
+    api:
+      rule: "PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/metrics`)"
+      service: api-service
+      entryPoints:
+        - websecure
+      tls:
+        options: tlsOptions
+      middlewares:
+        - security-headers
+        - api-ratelimit
+
+    health:
+      rule: "Path(`/health`)"
+      service: api-service
+      entryPoints:
+        - websecure
+      tls:
+        options: tlsOptions
+      middlewares:
+        - security-headers
+
     # Dashboard -- internal access only (no external route)
     dashboard:
       rule: "Host(`traefik.internal`)"
@@ -62,3 +83,9 @@ http:
         options: tlsOptions
       middlewares:
         - security-headers
+
+  services:
+    api-service:
+      loadBalancer:
+        servers:
+          - url: "http://api:8000"

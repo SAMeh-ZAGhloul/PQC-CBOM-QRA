@@ -11,7 +11,7 @@ from .auth.jwt import decode_token
 from .config import get_settings
 
 settings = get_settings()
-_bearer = HTTPBearer(auto_error=True)
+_bearer = HTTPBearer(auto_error=False)
 
 
 async def get_redis():
@@ -24,9 +24,15 @@ async def get_redis():
 
 
 async def get_current_token(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(_bearer)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
 ) -> dict[str, Any]:
     """Decode and validate JWT access token from Authorization header."""
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     try:
         payload = decode_token(credentials.credentials)
     except ValueError:
