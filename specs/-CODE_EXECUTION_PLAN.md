@@ -439,13 +439,13 @@ Verify group membership:
 Test login via the API:
   curl -sk -X POST https://localhost/auth/login \
     -H "Content-Type: application/json" \
-    -d '{"email":"admin@cbom.local","password":"YOUR_PASSWORD_HERE"}' \
+    -d '{"email":"admin@cbom.local","password":"CbomAdmin2026x"}' \
     | python3 -m json.tool
 
 Save the access token for use in later steps:
   ADMIN_TOKEN=$(curl -sk -X POST https://localhost/auth/login \
     -H "Content-Type: application/json" \
-    -d '{"email":"admin@cbom.local","password":"YOUR_PASSWORD_HERE"}' \
+    -d '{"email":"admin@cbom.local","password":"CbomAdmin2026x"}' \
     | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
   echo "Token length: ${#ADMIN_TOKEN}"
 ```
