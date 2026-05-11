@@ -54,9 +54,8 @@ done
 
 echo "==> Hashing password..."
 HASH=$(docker exec cbom-api python3 -c "
-from passlib.context import CryptContext
-ctx = CryptContext(schemes=['bcrypt'], deprecated='auto', bcrypt__rounds=12)
-print(ctx.hash('${ADMIN_PASS}'))
+import bcrypt
+print(bcrypt.hashpw('${ADMIN_PASS}'.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8'))
 " 2>/dev/null)
 
 if [[ -z "$HASH" ]]; then

@@ -5,14 +5,21 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Generic, Optional, TypeVar
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 T = TypeVar("T")
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str = Field(min_length=12)
+
+    @field_validator("email")
+    @classmethod
+    def validate_login_email(cls, value: str) -> str:
+        if "@" not in value or value.startswith("@") or value.endswith("@"):
+            raise ValueError("value is not a valid email address")
+        return value
 
 
 class RefreshRequest(BaseModel):
@@ -180,7 +187,7 @@ class GroupResponse(BaseModel):
 
 class UserResponse(BaseModel):
     id: uuid.UUID
-    email: EmailStr
+    email: str
     display_name: Optional[str]
     is_active: bool
     groups: list[GroupResponse] = Field(default_factory=list)
@@ -208,7 +215,7 @@ class TokenResponse(BaseModel):
 
 class AuthenticatedUserResponse(BaseModel):
     id: str
-    email: EmailStr
+    email: str
     display_name: Optional[str]
     roles: list[str]
 

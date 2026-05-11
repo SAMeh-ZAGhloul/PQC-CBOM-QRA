@@ -424,7 +424,7 @@ Run the seed script to create the admin user:
 
 When prompted, enter:
   Email:    admin@cbom.local
-  Password: (choose a password >= 12 characters, write it down)
+  Password: (choose a password >= 12 characters, write it down - CbomAdmin2026x)
 
 After the script completes, verify the user was created:
   docker exec cbom-postgres psql -U cbom -d cbom \
