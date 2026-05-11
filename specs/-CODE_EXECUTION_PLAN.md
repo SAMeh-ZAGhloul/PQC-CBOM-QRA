@@ -477,21 +477,21 @@ This file must contain EXACT code from spec 10:
 Start Ollama:
   docker compose up -d ollama
 
-Wait 30 seconds, then pull the Gemma 2 2B model:
+Wait 30 seconds, then pull the "tomng/lfm2.5-instruct:1.2b" model:
   bash scripts/model-pull.sh
 
-This will download approximately 2.7 GB. Wait for it to complete.
+This will download approximately 2.3 GB. Wait for it to complete.
 
 Verify the model is loaded:
   docker exec cbom-ollama ollama list
 
 Test a prompt to confirm inference works:
-  docker exec cbom-ollama ollama run gemma2:2b \
-    'Return JSON only, no markdown: {"status": "working", "model": "gemma2:2b"}'
+  docker exec cbom-ollama ollama run tomng/lfm2.5-instruct:1.2b \
+    'Return JSON only, no markdown: {"status": "working", "model": "tomng/lfm2.5-instruct:1.2b"}'
 ```
 
 **Expected:**
-- `ollama list` shows `gemma2:2b` with size ~2.7 GB
+- `ollama list` shows `tomng/lfm2.5-instruct:1.2b` with size ~2.3 GB
 - Test prompt returns a JSON response within 60 seconds
 
 ---

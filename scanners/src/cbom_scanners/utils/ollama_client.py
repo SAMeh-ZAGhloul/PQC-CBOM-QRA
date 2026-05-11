@@ -1,48 +1,11 @@
-# 10 -- Ollama SLM Service (Gemma 2 2B)
+from __future__ import annotations
+import asyncio, json, os
+from pathlib import Path
+from typing import Any
+import httpx, structlog
 
-> Read `00_MASTER_SPEC.md` first.
+logger = structlog.get_logger()
 
----
-
-## Model Specifications
-
-| Property       | Value                                                                 |
-| -------------- | --------------------------------------------------------------------- |
-| Model          | tomng/lfm2.5-instruct:1.2b                                            |
-| On-disk size   | ~2.3 GB                                                              |
-| RAM CPU-only   | ~4 GB                                                                 |
-| RAM GPU        | N/A                                                                   |
-| Inference CPU  | 2-5 seconds per request                                               |
-| Inference GPU  | < 500 ms                                                              |
-| Context window | 8192 tokens                                                           |
-| API            | OpenAI-compatible `/v1/chat/completions` + native `/api/generate` |
-
----
-
-## scripts/model-pull.sh
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-echo "==> Waiting for Ollama..."
-until curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; do sleep 2; done
-
-echo "==> Pulling tomng/lfm2.5-instruct:1.2b (~2.7 GB)..."
-docker exec cbom-ollama ollama pull tomng/lfm2.5-instruct:1.2b
-
-echo "==> Verifying model..."
-docker exec cbom-ollama ollama list
-echo "==> Done."
-```
-
----
-
-## Prompt Templates
-
-### Crypto Detection Prompt
-
-```python
 CRYPTO_DETECTION_PROMPT = (
     "You are a cryptographic security analyst.\n"
     "Analyze the code or configuration below for cryptographic operations.\n\n"
@@ -65,11 +28,7 @@ CRYPTO_DETECTION_PROMPT = (
     'If no cryptographic operations found, return: {"findings": []}\n\n'
     "Code to analyze:\n<code>\n{content}\n</code>"
 )
-```
 
-### Homegrown Crypto Detection Prompt
-
-```python
 HOMEGROWN_CRYPTO_PROMPT = (
     "You are a cryptographic security expert specializing in detecting "
     "non-standard and custom cryptographic implementations.\n\n"
@@ -89,20 +48,6 @@ HOMEGROWN_CRYPTO_PROMPT = (
     '}\n\n'
     "Code:\n<code>\n{content}\n</code>"
 )
-```
-
----
-
-## Rate-Limited Async Client
-
-```python
-from __future__ import annotations
-import asyncio, json, os
-from pathlib import Path
-from typing import Any
-import httpx, structlog
-
-logger = structlog.get_logger()
 
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "ollama")
 OLLAMA_PORT = os.environ.get("OLLAMA_PORT", "11434")
@@ -163,23 +108,3 @@ async def check_ollama_health() -> bool:
             return any(OLLAMA_MODEL in m.get("name","") for m in models)
     except Exception:
         return False
-```
-
----
-
-## Model Upgrade Reference
-
-```bash
-# Upgrade from Gemma 2 2B to a larger model (zero code changes):
-docker exec cbom-ollama ollama pull mistral:7b      # 8 GB RAM required
-docker exec cbom-ollama ollama pull codellama:13b   # 16 GB RAM required
-
-# Update .env:
-OLLAMA_MODEL=mistral:7b
-
-# Restart workers that use the SLM:
-docker compose restart worker-ast scoring-engine
-```
-
-GPU acceleration is automatic via the `deploy.resources.reservations.devices`
-block in docker-compose.yml. Ollama auto-detects NVIDIA GPUs at startup.
